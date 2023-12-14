@@ -1,9 +1,3 @@
-/*
- * @Date: 2023-11-29 16:17:30
- * @LastEditors: error: error: git config user.name & please set dead value or install git && error: git config user.email & please set dead value or install git & please set dead value or install git
- * @LastEditTime: 2023-11-29 16:41:41
- * @FilePath: /ieskf_ws/src/ieskf_slam/src/wrapper/ros_noetic/ieskf_frontend_wrapper_noetic.cpp
- */
 #include "wrapper/ros_noetic/ieskf_frontend_wrapper_noetic.h"
 #include "ieskf_slam/globedefine.h"
 #include <nav_msgs/Path.h>
