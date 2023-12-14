@@ -25,13 +25,13 @@ namespace ROSNoetic{
         public:
             AVIAProcess(){};
             ~AVIAProcess(){};
-            bool process(const livox_ros_driver2::CustomMsg::ConstPtr &msg, IESKFSlam::PointCloud &cloud){
+            bool process(const livox_ros_driver::CustomMsg::ConstPtr &msg, IESKFSlam::PointCloud &cloud){
                 cloud.cloud_ptr->clear();
                 //进行雷达数据的处理
                 for(uint i=0; i<msg->point_num; i++)
                 {
                     //检查雷达点有效性以及屏蔽blind
-                    if(((msg->points[i].tag & 0x30) == 0x10 || (msg->points[i].tag & 0x30) == 0x00) &&
+                    if((msg->points[i].tag & 0x30) == 0x10 || (msg->points[i].tag & 0x30) == 0x00 &&
                         msg->points[i].x * msg->points[i].x + msg->points[i].y * msg->points[i].y +
                         msg->points[i].z * msg->points[i].z > blind * blind)
                     {

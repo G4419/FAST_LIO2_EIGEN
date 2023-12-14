@@ -21,7 +21,6 @@ namespace ROSNoetic{
         nh.param<std::string>("wrapper/imu_topic", imu_topic, "/imu");
         nh.param<int>("wrapper/lidar_type", lidar_type, AVIA);
         nh.param<double>("wrapper/blind", blid, 0);
-        //std::cout << "blind: " << blid << std::endl;
         std::cout <<  "lidar_type: " <<lidar_type << std::endl;
 
         std::cout << "lidar_topic: " << lidar_topic << std::endl;
@@ -39,9 +38,6 @@ namespace ROSNoetic{
         imu_sub = nh.subscribe(imu_topic, 100, &IESKFFrontEndWrapper::imuMsgsCallback, this);
         //雷达点云回调函数
         cloud_sub = nh.subscribe(lidar_topic, 100, &IESKFFrontEndWrapper::cloudMsgsCallback, this);
-        //odometry_sub = nh.subscribe("/odometry", 100, &IESKFFrontEndWrapper::odometryMsgsCallback, this);
-
-        
         
         cur_cloud_pub = nh.advertise<sensor_msgs::PointCloud2>("curr_cloud", 100);
         local_map_pub = nh.advertise<sensor_msgs::PointCloud2>("local_map", 100);
@@ -52,12 +48,7 @@ namespace ROSNoetic{
     }
     IESKFFrontEndWrapper::~IESKFFrontEndWrapper(){}
 
-    // void IESKFFrontEndWrapper::cloudMsgsCallback(const sensor_msgs::PointCloud2Ptr &msg){
-    //     IESKFSlam::PointCloud point_cloud;
-    //     lidar_process_ptr->process(*msg, point_cloud);
-    //     frontend_ptr->addPointCloud(point_cloud);
-    // }
-    void IESKFFrontEndWrapper::cloudMsgsCallback(const livox_ros_driver2::CustomMsg::ConstPtr &msg){
+    void IESKFFrontEndWrapper::cloudMsgsCallback(const livox_ros_driver::CustomMsg::ConstPtr &msg){
         //将雷达点云信息添加到点云队列中
         IESKFSlam::PointCloud point_cloud;
         lidar_process_ptr->process(msg, point_cloud);
@@ -65,7 +56,6 @@ namespace ROSNoetic{
     }
 
     void IESKFFrontEndWrapper::imuMsgsCallback(const sensor_msgs::ImuPtr &msg){
-        //std::cout << "imu" << std::endl;
         //将imu信息添加到imu队列中
         IESKFSlam::IMU imu;
         imu.time_stamp.fromNsec(msg->header.stamp.toNSec());
@@ -78,7 +68,6 @@ namespace ROSNoetic{
         while(ros::ok()){   
             //跟踪线程
             if(frontend_ptr->track()){
-                //std::cout << "track" << std::endl;
                 //发布信息
                 publishMsg();
             }
@@ -98,15 +87,17 @@ namespace ROSNoetic{
         psd.pose.position.y = X.position.y();
         psd.pose.position.z = X.position.z();
         path.poses.push_back(psd);
-        //std::cout << psd.pose.position.x << std::endl;
         path_pub.publish(path);
+        
         //发布当前扫描的点云信息
         IESKFSlam::PCLPointCloud cloud = frontend_ptr->readCurrentPointCloud();
+        pcl::transformPointCloud(cloud, cloud, IESKFSlam::compositeTransform(X.extrin_r, X.extrin_t).cast<float>());
         pcl::transformPointCloud(cloud, cloud, IESKFSlam::compositeTransform(X.rotation, X.position).cast<float>());
         sensor_msgs::PointCloud2 msg;
         pcl::toROSMsg(cloud, msg);
         msg.header.frame_id = "map";
         cur_cloud_pub.publish(msg);
+
         //发布地图信息
         cloud = frontend_ptr->readCurrentLocalMap();
         pcl::toROSMsg(cloud, msg);

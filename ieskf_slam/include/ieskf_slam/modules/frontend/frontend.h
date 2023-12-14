@@ -46,15 +46,8 @@ namespace IESKFSlam{
             bool imu_inited = false;
             //判断imu角速度的单位，统一为m/s^2
             double imu_scale = 1;
-            //imu与雷达间的外参
-            Eigen::Quaterniond extrin_r;//extrinsic_rotation
-            Eigen::Vector3d extrin_t;
-            //debug参数，用来记录每个步骤所耗时间
-            // double sync_time_used = 0.0;
-            // double propagate_time_used = 0.0;
-            // double update_time_used = 0.0;
-            // int sync_times = 0;
-            //记录路径（path）
+            
+            
             bool enable_record = false;
             std::string record_file_name;
             std::fstream record_file;
@@ -72,7 +65,7 @@ namespace IESKFSlam{
             const PCLPointCloud &readCurrentLocalMap();
             bool syncMeasureGroup(measure_group &mg);
             void initState(measure_group &mg);
-            IESKF::State18 readState();
+            IESKF::State24 readState();
     };
 }
 

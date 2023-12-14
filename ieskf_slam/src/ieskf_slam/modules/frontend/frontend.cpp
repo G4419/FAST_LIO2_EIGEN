@@ -6,6 +6,8 @@ namespace IESKFSlam{
         readParam("filter_leaf_size", leaf_size, 0.5f);
         //设置体素滤波器，单位米
         voxfilter.setLeafSize(leaf_size, leaf_size, leaf_size);
+        Eigen::Quaterniond extrin_r;
+        Eigen::Vector3d extrin_t;
         extrin_r.setIdentity();
         extrin_t.setZero();
         //读取外参信息
@@ -25,7 +27,8 @@ namespace IESKFSlam{
         }
         readParam("extrin_t", temp_v, std::vector<double>());
         if(temp_v.size() == 3) extrin_t << temp_v[0], temp_v[1], temp_v[2];
-
+        
+        
         readParam("enable_record", enable_record, false);
         readParam("record_file_name", record_file_name, std::string("default.txt"));
         //打开文件写入流
@@ -36,24 +39,23 @@ namespace IESKFSlam{
         //打印参数
         print_table();
         
-
-
         ieskf_ptr = std::make_shared<IESKF>(config_file_path, "ieskf");
+        auto x = ieskf_ptr->getX();
+        x.extrin_r = extrin_r;
+        x.extrin_t = extrin_t;
+        ieskf_ptr->setX(x);
         map_ptr = std::make_shared<RectMapManager>(config_file_path, "map");
         fb_propagate_ptr = std::make_shared<FrontBackPropagate>();
         lio_zh_model_ptr = std::make_shared<LIOZHModel>();
         //为了调用lio_zh_model的计算Z和H的函数
         ieskf_ptr->cal_ZH_ptr = lio_zh_model_ptr;
-        //过滤一帧点云
+        //对点云进行下采样处理
         filter_point_cloud_ptr = pcl::make_shared<PCLPointCloud>();
         //进行指针传递，分别对应 global_map_kdtree_ptr，current_cloud_ptr，local_map_ptr;
         lio_zh_model_ptr->prepare(map_ptr->readKdtree(),filter_point_cloud_ptr, map_ptr->getLocalMap());
     };
 
     FrontEnd::~FrontEnd(){
-        // std::cout << "average sync_time_used: " << sync_time_used / sync_times << std::endl;
-        // std::cout << "average propagate_time_used: " << propagate_time_used / sync_times << std::endl;
-        // std::cout << "average update_time_used: " << update_time_used / sync_times << std::endl;
         if (record_file.is_open())
         {
             record_file.close();
@@ -66,52 +68,36 @@ namespace IESKFSlam{
 
     }
     void FrontEnd::addPointCloud(const PointCloud &pointclod){
-        //添加点云数据并转换到imu坐标系下
         pointcloud_deque.push_back(pointclod);
-        pcl::transformPointCloud(*pointcloud_deque.back().cloud_ptr, *pointcloud_deque.back().cloud_ptr, compositeTransform(extrin_r, extrin_t));
     }
     //跟踪函数：包括了取数据，初始化imu，添加点云（地图），传播
     bool FrontEnd::track(){
         measure_group mg;
-        //std::chrono::steady_clock::time_point t1 = std::chrono::steady_clock::now();
+        
         //从队列中取数据
         bool isSynced = syncMeasureGroup(mg);
-        // std::chrono::steady_clock::time_point t2 = std::chrono::steady_clock::now();
-        // std::chrono::duration<double> time_used = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
+        
         if(isSynced){
-            //std::cout << "syncMeasureGroup_time_used: " << time_used.count() << std::endl;
-            // sync_times++;
-            // sync_time_used += time_used.count();
+            
             if(!imu_inited){
                 map_ptr->reset();
                 //将初始的点云数据添加到地图中
-                map_ptr->addScan(mg.point_cloud_measure.cloud_ptr, Eigen::Quaterniond::Identity(), Eigen::Vector3d::Zero());
+                map_ptr->addScan(mg.point_cloud_measure.cloud_ptr, Eigen::Quaterniond::Identity(), Eigen::Vector3d::Zero(), ieskf_ptr);
                 initState(mg);
                 return false;
             }
-            //std::cout << "imu_queue.size():" << mg.imus_measure.size() << " scale:" << imu_scale << std::endl;
             
-            // t1 = std::chrono::steady_clock::now();
             //前后向传播
             fb_propagate_ptr->propagate(mg, ieskf_ptr);
-            // t2 = std::chrono::steady_clock::now();
-            // time_used = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
-            // //std::cout << "propagate_time_used: " << time_used.count() << std::endl;
-            // propagate_time_used += time_used.count();
             
             auto x = ieskf_ptr->getX();
-            //std::cout << "after propagate, x.position.x(): " << x.position.x() << std::endl;
-            //std::cout << "after propagate, x.rotation.x(): " << x.rotation.x() << std::endl;
+
             //对当前点云进行下采样
             voxfilter.setInputCloud(mg.point_cloud_measure.cloud_ptr);
             voxfilter.filter(*filter_point_cloud_ptr);//filter_point_cloud_ptr与current_cloud_ptr指针是相关连的
             
-            // t1 = std::chrono::steady_clock::now();
             ieskf_ptr->update();
-            // t2 = std::chrono::steady_clock::now();
-            // time_used = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
-            // //std::cout << "update_time_used: " << time_used.count() << std::endl;
-            // update_time_used += time_used.count();
+
             //输出位姿到文件中
             x = ieskf_ptr->getX();
             if(enable_record && record_file.is_open()){
@@ -120,10 +106,9 @@ namespace IESKFSlam{
                             << x.rotation.x() << " " << x.rotation.y() << " " << x.rotation.z()<< " "
                             << x.rotation.w() << std::endl;
             }
-            //std::cout << "after update, x.position.x(): " << x.position.x() << std::endl;
-            //std::cout << "after update, x.rotation.x(): " << x.rotation.x() << std::endl;
+
             //将点云加载到local_map_ptr（地图）中
-            map_ptr->addScan(filter_point_cloud_ptr, x.rotation, x.position);
+            map_ptr->addScan(filter_point_cloud_ptr, x.rotation, x.position, ieskf_ptr);
             return true;
         }
         return false;
@@ -180,7 +165,7 @@ namespace IESKFSlam{
         static Eigen::Vector3d mean_acc{0, 0, 0};
         static Eigen::Vector3d mean_angle_velocity{0, 0, 0};
         auto &ieskf = *ieskf_ptr;
-        //if(imu_inited) return;
+        
         for(size_t i = 0; i < mg.imus_measure.size(); i++){
             mean_acc += mg.imus_measure[i].acceleration;
             mean_angle_velocity += mg.imus_measure[i].gyroscope;
@@ -204,7 +189,7 @@ namespace IESKFSlam{
             imu_inited = true;
         }
     }
-    IESKF::State18 FrontEnd::readState(){
+    IESKF::State24 FrontEnd::readState(){
         return ieskf_ptr->getX();
     }
     

@@ -26,7 +26,7 @@ namespace IESKFSlam{
         X.velocity.setZero();
     };
     IESKF::~IESKF(){}
-    const IESKF::State18& IESKF::getX(){
+    const IESKF::State24& IESKF::getX(){
         return X;
     }
     
@@ -35,15 +35,15 @@ namespace IESKFSlam{
         //omega_hat和a_hat
         imu.acceleration -= X.b_a;
         imu.gyroscope -= X.b_g;
-        //对应公式4
+        //对应公式6
         auto rotation = X.rotation.toRotationMatrix();
         X.rotation = Eigen::Quaterniond(rotation* so3Exp(imu.gyroscope * dt));
         X.rotation.normalize();
         X.position += X.velocity*dt;
         X.velocity += (rotation * imu.acceleration + X.grivity) * dt;
         //Fx和Fw
-        Eigen::Matrix<double, 18, 18> Fx;
-        Eigen::Matrix<double, 18, 12> Fw;
+        Eigen::Matrix<double, 24, 24> Fx;
+        Eigen::Matrix<double, 24, 12> Fw;
         Fx.setIdentity();
         Fw.setZero();
 
@@ -59,55 +59,56 @@ namespace IESKFSlam{
         P = Fx*P*Fx.transpose() +Fw*Q*Fw.transpose();
         
     }
-    void IESKF::setX(const IESKF::State18 &x_in){
+    void IESKF::setX(const IESKF::State24 &x_in){
         X = x_in;
     }
-    Eigen::Matrix<double, 18, 1> IESKF::getErrorState(const IESKF::State18 &s1, const IESKF::State18 &s2){
-        Eigen::Matrix<double, 18, 1> ans;
+    Eigen::Matrix<double, 24, 1> IESKF::getErrorState(const IESKF::State24 &s1, const IESKF::State24 &s2){
+        Eigen::Matrix<double, 24, 1> ans;
         ans.block<3,1>(0,0) = SO3Log(s2.rotation.toRotationMatrix().transpose()*s1.rotation.toRotationMatrix());
         ans.block<3,1>(3,0) = s1.position - s2.position;
         ans.block<3,1>(6,0) = s1.velocity - s2.velocity;
         ans.block<3,1>(9,0) = s1.b_g - s2.b_g;
         ans.block<3,1>(12,0) = s1.b_a - s2.b_a;
         ans.block<3,1>(15,0) = s1.grivity - s2.grivity;
+        ans.block<3,1>(18,0) = SO3Log(s2.extrin_r.toRotationMatrix().transpose()*s1.extrin_r.toRotationMatrix());
+        ans.block<3,1>(21,0) = s1.extrin_t - s2.extrin_t;
         return ans;
     }
     bool IESKF::update(){
         auto x_k_k = X;
-        Eigen::Matrix<double,18,18> P_in_update;
+        Eigen::Matrix<double,24,24> P_in_update;
         Eigen::MatrixXd Z;
         Eigen::MatrixXd H;
         Eigen::MatrixXd K;
         bool converge = true;
         for(size_t i = 0; i < max_iter; i++){
             auto error_state = IESKF::getErrorState(x_k_k, X);
-            //公式16
-            Eigen::Matrix<double, 18, 18> J_inv;
+            //公式11
+            Eigen::Matrix<double, 24, 24> J_inv;
             J_inv.setIdentity();
             J_inv.block<3,3>(0,0) = A_T(error_state.block<3,1>(0,0));
+            J_inv.block<3,3>(18,18) = A_T(error_state.block<3,1>(18,0));
             P_in_update = J_inv * P * J_inv.transpose();
             //计算z和h
             cal_ZH_ptr->calculate(x_k_k, Z, H);
             
             Eigen::MatrixXd H_t = H.transpose();
-            // std::cout << "rows: " << H_t.rows() << "cols: " << H_t.cols() << std::endl;
-            // std::cout << "rows: " << H.rows() << "cols: " << H.cols() << std::endl;
-            // std::cout << "rows: " << P_in_update.rows() << "cols: " << P_in_update.cols() << std::endl;
-            //公式20 R写成定值0.001
-            K = (H_t * H + (P_in_update/ 0.001).inverse() ).inverse() * H_t;
+            
+            //公式14 R写成定值0.001
+            K = (H_t * H + (P_in_update/ 0.001).inverse()).inverse() * H_t;
             //公式18
-            Eigen::Matrix<double, 18, 1> left = -K * Z;
-            Eigen::Matrix<double, 18, 1> right = -(Eigen::Matrix<double, 18, 18>::Identity() - K*H)*J_inv*error_state;
-            Eigen::Matrix<double, 18, 1> update_X = left + right;
+            Eigen::Matrix<double, 24, 1> left = -K * Z;
+            Eigen::Matrix<double, 24, 1> right = -(Eigen::Matrix<double, 24, 24>::Identity() - K*H)*J_inv*error_state;
+            Eigen::Matrix<double, 24, 1> update_X = left + right;
 
             converge = true;
-            for(size_t j = 0; j < 18; j++){
+            for(size_t j = 0; j < 24; j++){
                 if(update_X(j, 0) > 0.001){
                     converge = false;
                     break;
                 }
             }
-            //状态变量加到名义变量上去
+            //将更新量加到名义变量上去
             x_k_k.rotation = x_k_k.rotation.toRotationMatrix()*so3Exp(update_X.block<3,1>(0,0));
             x_k_k.rotation.normalize();
             x_k_k.position = x_k_k.position + update_X.block<3,1>(3,0);
@@ -115,6 +116,8 @@ namespace IESKFSlam{
             x_k_k.b_g = x_k_k.b_g + update_X.block<3,1>(9,0);
             x_k_k.b_a = x_k_k.b_a + update_X.block<3,1>(12,0);
             x_k_k.grivity = x_k_k.grivity + update_X.block<3,1>(15,0);
+            x_k_k.extrin_r = x_k_k.extrin_r.toRotationMatrix() * so3Exp(update_X.block<3,1>(18,0));
+            x_k_k.extrin_t = x_k_k.extrin_t + update_X.block<3,1>(21,0);
 
             if (converge)
             {
@@ -122,9 +125,9 @@ namespace IESKFSlam{
             }
 
         }
-        //公式19
+        //公式15
         X = x_k_k;
-        P = (Eigen::Matrix<double, 18, 18>::Identity() - K * H ) * P_in_update;
+        P = (Eigen::Matrix<double, 24, 24>::Identity() - K * H ) * P_in_update;
         return converge;
     }
     

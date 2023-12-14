@@ -2,9 +2,14 @@
 
 namespace IESKFSlam{
     
-    FrontBackPropagate::FrontBackPropagate(){};
+    FrontBackPropagate::FrontBackPropagate(){
+        // debug_file.open("/home/ryan/slam/test_ws/src/ieskf_slam/debug_file.txt", std::ios::out);
+        // debug_file.clear();
+    };
 
-    FrontBackPropagate::~FrontBackPropagate(){};
+    FrontBackPropagate::~FrontBackPropagate(){
+        // debug_file.close();
+    };
     
     void FrontBackPropagate::propagate(measure_group &mg, IESKF::Ptr ieskf_ptr){
         //使用lambda表达式进行mg数据点云中点的排序
@@ -38,11 +43,7 @@ namespace IESKFSlam{
             //取一前一后两个imu
             auto &&head = *(it_imu);
             auto &&tail = *(it_imu+1);
-            //保险措施，实际上基本不可能发生
-            // if (tail.time_stamp.sec() < last_lidar_end_time_){
-            //      std::cout << "jump this imu " << std::endl;
-            //     continue;
-            // }
+
             //取平均
             acce_avr = (head.acceleration + tail.acceleration) * 0.5;
             gyro_avr = (head.gyroscope + tail.gyroscope) * 0.5 ;
@@ -73,11 +74,12 @@ namespace IESKFSlam{
         dt = mg.lidar_end_time - imu_end_time;
         ieskf_ptr->predict(in, dt);
         state = ieskf_ptr->getX();
+
         //将mg中最后一个imu存到last_imu中
         last_imu = mg.imus_measure.back();
         last_lidar_end_time_ = mg.lidar_end_time;
         //按照雷达点左边的imu数据作为状态，以下的值全是左边imu的值
-        Eigen::Vector3d  vel_imu, pos_imu, acc_imu, angle_velocity_imu;
+        Eigen::Vector3d vel_imu, pos_imu, acc_imu, angle_velocity_imu;
         Eigen::Matrix3d R_imu;
         if(pcl_out.begin() == pcl_out.end()) return;
         auto pcl_it = pcl_out.points.end() - 1;
@@ -96,11 +98,13 @@ namespace IESKFSlam{
                 Eigen::Matrix3d R_i(R_imu* so3Exp(angle_velocity_imu*dt));
                 Eigen::Vector3d p_i = {pcl_it->x, pcl_it->y, pcl_it->z};
                 Eigen::Vector3d T_ei(pos_imu + vel_imu*dt + 0.5* acc_imu*dt*dt - state.position);
-                Eigen::Vector3d P_compensate = state.rotation.conjugate() * (R_i * p_i + T_ei);
+                Eigen::Vector3d P_compensate = state.extrin_r.conjugate() *
+                                    (state.rotation.conjugate() * (R_i * (state.extrin_r * p_i + state.extrin_t) + T_ei)
+                                    - state.extrin_t);
                 pcl_it->x = P_compensate(0);
                 pcl_it->y = P_compensate(1);
                 pcl_it->z = P_compensate(2);
-                //if(pcl_it == pcl_out.points.begin()) std::cout << "pcl_it->x: " << pcl_it->x << std::endl;
+                // debug_file  << pcl_it->x << " " <<  pcl_it->y << " " << pcl_it->z << std::endl;
             }
         }
     }

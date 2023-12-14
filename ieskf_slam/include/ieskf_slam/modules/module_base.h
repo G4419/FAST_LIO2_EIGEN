@@ -31,7 +31,7 @@ namespace IESKFSlam{
                         std::cerr <<"error:" <<  e.msg << '\n';
                     }
 
-                    if(prefix!="" && config_node[prefix]) config_node = config_node[prefix];
+                    if(prefix!=""&&config_node[prefix]) config_node = config_node[prefix];
                 }
            }
            template<typename T>

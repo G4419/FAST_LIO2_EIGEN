@@ -14,11 +14,12 @@ namespace IESKFSlam
     using KDtreeConstPtr = KDtree::ConstPtr;
 
     const double GRIVITY = 9.81;
-    template <typename _first, typename _second, typename _third>
+    template <typename _first, typename _second, typename _third, typename _fourth>
     struct triple{
         _first first;
         _second second;
         _third third;
+        _fourth fourth;
     };
 
 } // namespace IESKFSlam

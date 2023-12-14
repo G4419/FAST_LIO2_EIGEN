@@ -3,6 +3,9 @@ project(ieskf_slam)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
 # add_compile_options(-std=c++11)
+
+# SET(CMAKE_BUILD_TYPE Debug)
+
 SET( CMAKE_CXX_FLAGS "-std=c++17 -O3" )
 add_compile_options(-std=c++17)
 add_definitions(-DPROJ_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
@@ -23,7 +26,7 @@ find_package(catkin REQUIRED COMPONENTS
   rospy
   std_msgs
   sensor_msgs
-  livox_ros_driver2
+  livox_ros_driver
 )
 find_package(PCL REQUIRED)
 find_package(PkgConfig REQUIRED)

@@ -19,10 +19,13 @@ namespace IESKFSlam
         local_map_ptr->clear();
     }
     //向地图指针指向的点云中添加点云，cur_scan：需要变换的点云，q和t变换矩阵，scan经过变换后的点云
-    void RectMapManager::addScan(PCLPointCloudPtr cur_scan, const Eigen::Quaterniond &q, const Eigen::Vector3d &t){
+    void RectMapManager::addScan(PCLPointCloudPtr cur_scan, const Eigen::Quaterniond &q, const Eigen::Vector3d &t, IESKF::Ptr ieskf_ptr){
         PCLPointCloud scan;
-        //pcl库里的点云变换函数
-        pcl::transformPointCloud(*cur_scan, scan, compositeTransform(q, t).cast<float>());
+    
+        auto x = ieskf_ptr->getX();
+        //先转换到imu坐标系下，再转换到世界坐标系下
+        pcl::transformPointCloud(*cur_scan, scan, compositeTransform(x.extrin_r, x.extrin_t).cast<float>());
+        pcl::transformPointCloud(scan, scan, compositeTransform(q, t).cast<float>());
         //如果地图为空，则直接赋值
         if(local_map_ptr->empty()) *local_map_ptr = scan;
         else{

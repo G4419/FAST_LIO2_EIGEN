@@ -10,8 +10,8 @@ namespace IESKFSlam
     class LIOZHModel : public IESKF::calZHInterface{
         private:
             const int NEAR_POINTS_NUM = 5;
-            //1) point_imu 2) normal_vector 3)distance
-            using loss_type = triple<Eigen::Vector3d, Eigen::Vector3d, double>;
+            //1) point_imu 2) normal_vector 3)distance 4)point_lidar
+            using loss_type = triple<Eigen::Vector3d, Eigen::Vector3d, double, Eigen::Vector3d>;
             KDtreeConstPtr global_map_kdtree_ptr;
             PCLPointCloudPtr current_cloud_ptr;
             PCLPointCloudConstPtr local_map_ptr;
@@ -22,7 +22,7 @@ namespace IESKFSlam
                 current_cloud_ptr = current_cloud;
                 local_map_ptr = local_map;
             }
-            bool calculate(const IESKF::State18 &state, Eigen::MatrixXd &Z, Eigen::MatrixXd &H) override {
+            bool calculate(const IESKF::State24 &state, Eigen::MatrixXd &Z, Eigen::MatrixXd &H) override {
                 //std::vector<loss_type> loss_v;
                 //loss_v.resize(current_cloud_ptr->size());
                 //std::vector<bool> is_effect_point(current_cloud_ptr->size(), false);
@@ -45,7 +45,8 @@ namespace IESKFSlam
                 */
                //std::cout << current_cloud_ptr->size() << std::endl;
                 for(size_t i = 0; i < current_cloud_ptr->size(); i++){
-                    Point point_imu = current_cloud_ptr->points[i];
+                    Point point_lidar = current_cloud_ptr->points[i];
+                    Point point_imu = transformPoint(point_lidar, state.extrin_r, state.extrin_t);
                     Point point_world = transformPoint(point_imu, state.rotation, state.position);
                     std::vector<int> point_index;
                     std::vector<float> point_distance;//nearestKSearch传入的必须是float
@@ -70,6 +71,7 @@ namespace IESKFSlam
                         loss.first = {point_imu.x, point_imu.y, point_imu.z};
                         loss.second = {pabcd(0), pabcd(1), pabcd(2)};
                         loss.third = pd;
+                        loss.fourth = {point_lidar.x, point_lidar.y, point_lidar.z};
                         if(isnan(pd) || isnan(loss.second(0)) || isnan(loss.second(1)) || isnan(loss.second(2))){
                             //std::cout<< "invalid" << std::endl;
                             continue;
@@ -89,19 +91,20 @@ namespace IESKFSlam
                     }
                 }
                 int valid_point_nums = loss_real.size();
-                H = Eigen::MatrixXd::Zero(valid_point_nums, 18);
+                H = Eigen::MatrixXd::Zero(valid_point_nums, 24);
                 Z.resize(valid_point_nums ,1);
-                //点到平面的距离y = u^T * (R*p_l+t-q) = u^T * (真值R * Exp(delta theta) * p_l + 真值t - 误差t - q)
-                //分别对误差t和绕动theta求导分别为H.block<1,3>(i,3)和H.block<1,3>(i, 0)
-
+                //点到平面的距离y = u^T * (R_I*(R_L * p_l + t_L)+t_I-q)
+                //分别对R_I和t_I求导分别为H.block<1,3>(i,3)和H.block<1,3>(i, 0)
+                //分别对R_L和t_L求导分别为H.block<1,3>(i,18)和H.block<1,21>(i, 0)
+                //1) point_imu 2) normal_vector 3)distance 4)point_lidar
                 for(size_t i = 0; i < valid_point_nums; i++){
                     Eigen::Vector3d dr = -loss_real[i].second.transpose() * state.rotation.toRotationMatrix() * skewSymmetric(loss_real[i].first);
-                    H.block<1,3>(i, 0) = dr.transpose();
+                    H.block<1,3>(i, 0) = dr;
                     H.block<1,3>(i,3) = loss_real[i].second.transpose();
+                    H.block<1,3>(i,18) = -loss_real[i].second.transpose() * state.rotation.toRotationMatrix() * state.extrin_r.toRotationMatrix() * skewSymmetric(loss_real[i].fourth);
+                    H.block<1,3>(i,21) = loss_real[i].second.transpose() * state.rotation.toRotationMatrix();
                     Z(i,0) = loss_real[i].third;
                 }
-                // std::cout << "rows: " << H.rows() << "cols: " << H.cols() << std::endl;
-                // std::cout << "rows: " << Z.rows() << "cols: " << Z.cols() << std::endl;
                return true;
             }
     };

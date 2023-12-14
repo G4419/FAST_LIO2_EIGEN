@@ -3,7 +3,7 @@
 
 #include "ieskf_slam/modules/ieskf/ieskf.h"
 #include "ieskf_slam/type/measure_group.h"
-
+// #include <fstream>
 namespace IESKFSlam{
     class FrontBackPropagate{
         private:
@@ -30,6 +30,7 @@ namespace IESKFSlam{
             };
             Eigen::Vector3d last_accelaration;
             Eigen::Vector3d last_angle_velocity;
+            // std::fstream debug_file;
             
         public:
             FrontBackPropagate();

@@ -31,7 +31,7 @@ namespace IESKFSlam{
         Eigen::Vector3d so3(SO3(2,1)-SO3(1,2),SO3(0,2)-SO3(2,0),SO3(1,0)-SO3(0,1)); 
         return fabs(theta)<0.001?(0.5*so3):(0.5*theta/sin(theta)*so3);
     }
-    //参考fastlio所引用的论文，A就是这个形式，并且其是一个对称矩阵。
+    //参考fastlio所引用的论文，A就是这个形式。
     static Eigen::Matrix3d  A_T(const Eigen::Vector3d& v){
         Eigen::Matrix3d res;
         double squaredNorm = v[0] * v[0] + v[1] * v[1] + v[2] * v[2];

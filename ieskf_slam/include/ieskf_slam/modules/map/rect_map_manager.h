@@ -4,6 +4,7 @@
 #include "ieskf_slam/type/point_cloud.h"
 #include <pcl/common/transforms.h>
 #include "ieskf_slam/type/base_type.h"
+#include "ieskf_slam/modules/ieskf/ieskf.h"
 namespace IESKFSlam{
     class RectMapManager : private ModuleBase{
         private:
@@ -15,7 +16,7 @@ namespace IESKFSlam{
             RectMapManager(const std::string &config_file_path, const std::string &prefix);
             ~RectMapManager();
             void reset();
-            void addScan(PCLPointCloudPtr cur_scan, const Eigen::Quaterniond &q, const Eigen::Vector3d &t);
+            void addScan(PCLPointCloudPtr cur_scan, const Eigen::Quaterniond &q, const Eigen::Vector3d &t, IESKF::Ptr ieskf_ptr);
             PCLPointCloudConstPtr getLocalMap();
             KDtreeConstPtr readKdtree();
     };

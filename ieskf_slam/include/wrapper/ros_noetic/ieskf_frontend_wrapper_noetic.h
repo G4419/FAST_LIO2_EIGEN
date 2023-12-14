@@ -24,7 +24,7 @@ namespace ROSNoetic{
         std::shared_ptr<CommonLidarProcessInterface> lidar_process_ptr;
 
         IESKFSlam::PCLPointCloud cur_cloud;
-        void cloudMsgsCallback(const livox_ros_driver2::CustomMsg::ConstPtr &msg);
+        void cloudMsgsCallback(const livox_ros_driver::CustomMsg::ConstPtr &msg);
         void imuMsgsCallback(const sensor_msgs::ImuPtr &msg);
         
         void run();
