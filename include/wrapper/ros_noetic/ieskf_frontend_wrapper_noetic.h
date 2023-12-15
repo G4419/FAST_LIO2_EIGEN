@@ -6,6 +6,8 @@
 #include <sensor_msgs/Imu.h>
 #include <nav_msgs/Odometry.h>
 #include "lidar_process/avia_process.h"
+#include <nav_msgs/Path.h>
+#include <tf/transform_broadcaster.h>
 namespace ROSNoetic{
     enum LIDAR_TYPE{
         AVIA = 0,
@@ -20,6 +22,9 @@ namespace ROSNoetic{
         ros::Publisher path_pub;
         ros::Publisher cur_cloud_pub;
         ros::Publisher local_map_pub;
+        ros::Publisher odometry_pub;
+        nav_msgs::Path path;
+        nav_msgs::Odometry odometry;
 
         std::shared_ptr<CommonLidarProcessInterface> lidar_process_ptr;
 
