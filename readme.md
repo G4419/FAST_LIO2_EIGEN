@@ -12,5 +12,5 @@
 2. 下载[livox_ros_driver](https://github.com/Livox-SDK/livox_ros_driver)
 3. 将livox_ros_driver和FAST_LIO2_EIGEN放到一起catkin_make
 ### TO-DO LIST
-- [ ] 重力对齐 
+- [x] 重力对齐 
 - [ ] 使用idk-tree代替kd-tree
