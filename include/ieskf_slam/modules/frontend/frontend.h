@@ -40,7 +40,7 @@ namespace IESKFSlam{
             bool imu_inited = false;
             //判断imu角速度的单位，统一为m/s^2
             double imu_scale = 1;
-            
+            bool gravity_align = false;
             
             bool enable_record = false;
             std::string record_file_name;
@@ -59,6 +59,8 @@ namespace IESKFSlam{
             const PCLPointCloud &readCurrentLocalMap();
             bool syncMeasureGroup(measure_group &mg);
             void initState(measure_group &mg);
+            void setInit(const Eigen::Vector3d& gravity_m, Eigen::Matrix3d& rot);
+            double getLidarLastTime();
             IESKF::State24 readState();
     };
 }

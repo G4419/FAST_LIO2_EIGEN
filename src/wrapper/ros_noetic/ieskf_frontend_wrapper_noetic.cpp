@@ -1,6 +1,5 @@
 #include "wrapper/ros_noetic/ieskf_frontend_wrapper_noetic.h"
 #include "ieskf_slam/globedefine.h"
-#include <nav_msgs/Path.h>
 namespace ROSNoetic{
     IESKFFrontEndWrapper::IESKFFrontEndWrapper(ros::NodeHandle &nh){
         //从ros参数服务器里读取数据
@@ -29,13 +28,14 @@ namespace ROSNoetic{
             exit(100);
         }
         //imu回调函数
-        imu_sub = nh.subscribe(imu_topic, 100, &IESKFFrontEndWrapper::imuMsgsCallback, this);
+        imu_sub = nh.subscribe(imu_topic, 200000, &IESKFFrontEndWrapper::imuMsgsCallback, this);
         //雷达点云回调函数
-        cloud_sub = nh.subscribe(lidar_topic, 100, &IESKFFrontEndWrapper::cloudMsgsCallback, this);
+        cloud_sub = nh.subscribe(lidar_topic, 200000, &IESKFFrontEndWrapper::cloudMsgsCallback, this);
         
-        cur_cloud_pub = nh.advertise<sensor_msgs::PointCloud2>("curr_cloud", 100);
-        local_map_pub = nh.advertise<sensor_msgs::PointCloud2>("local_map", 100);
-        path_pub = nh.advertise<nav_msgs::Path>("path", 100);
+        cur_cloud_pub = nh.advertise<sensor_msgs::PointCloud2>("curr_cloud", 100000);
+        local_map_pub = nh.advertise<sensor_msgs::PointCloud2>("local_map", 100000);
+        path_pub = nh.advertise<nav_msgs::Path>("path", 100000);
+        odometry_pub = nh.advertise<nav_msgs::Odometry>("odometry", 100000);
         //运行
         run();
 
@@ -71,7 +71,7 @@ namespace ROSNoetic{
     }
     //发布数据
     void IESKFFrontEndWrapper::publishMsg(){
-        static nav_msgs::Path path;
+        
         auto X = frontend_ptr->readState();
         path.header.frame_id = "map";
 
@@ -82,6 +82,33 @@ namespace ROSNoetic{
         psd.pose.position.z = X.position.z();
         path.poses.push_back(psd);
         path_pub.publish(path);
+
+        //发布odometry信息
+        odometry.header.frame_id = "map";
+        odometry.child_frame_id = "odometry";
+        odometry.header.stamp = ros::Time().fromSec(frontend_ptr->getLidarLastTime());
+        odometry.pose.pose.position.x = X.position(0);
+        odometry.pose.pose.position.y = X.position(1);
+        odometry.pose.pose.position.z = X.position(2);
+        odometry.pose.pose.orientation.w = X.rotation.w();
+        odometry.pose.pose.orientation.x = X.rotation.x();
+        odometry.pose.pose.orientation.y = X.rotation.y();
+        odometry.pose.pose.orientation.z = X.rotation.z();
+        odometry_pub.publish(odometry);
+
+        static tf::TransformBroadcaster br;
+        tf::Transform transform;
+        tf::Quaternion q;
+        transform.setOrigin(tf::Vector3(odometry.pose.pose.position.x, 
+                                        odometry.pose.pose.position.y, 
+                                        odometry.pose.pose.position.z));
+        q.setW(odometry.pose.pose.orientation.w);
+        q.setX(odometry.pose.pose.orientation.x);
+        q.setY(odometry.pose.pose.orientation.y);
+        q.setZ(odometry.pose.pose.orientation.z);
+        transform.setRotation(q);
+        br.sendTransform(tf::StampedTransform(transform, odometry.header.stamp, "map", "odometry"));
+        
         
         //发布当前扫描的点云信息
         IESKFSlam::PCLPointCloud cloud = frontend_ptr->readCurrentPointCloud();

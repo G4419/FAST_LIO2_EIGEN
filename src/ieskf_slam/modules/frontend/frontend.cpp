@@ -4,6 +4,7 @@ namespace IESKFSlam{
         
         float leaf_size;
         readParam("filter_leaf_size", leaf_size, 0.5f);
+        readParam("gravity_align", gravity_align, false);
         //设置体素滤波器，单位米
         voxfilter.setLeafSize(leaf_size, leaf_size, leaf_size);
         Eigen::Quaterniond extrin_r;
@@ -80,10 +81,11 @@ namespace IESKFSlam{
         if(isSynced){
             
             if(!imu_inited){
+                initState(mg);
                 map_ptr->reset();
                 //将初始的点云数据添加到地图中
-                map_ptr->addScan(mg.point_cloud_measure.cloud_ptr, Eigen::Quaterniond::Identity(), Eigen::Vector3d::Zero(), ieskf_ptr);
-                initState(mg);
+                auto x = ieskf_ptr->getX();
+                map_ptr->addScan(mg.point_cloud_measure.cloud_ptr, ieskf_ptr);
                 return false;
             }
             
@@ -108,7 +110,7 @@ namespace IESKFSlam{
             }
 
             //将点云加载到local_map_ptr（地图）中
-            map_ptr->addScan(filter_point_cloud_ptr, x.rotation, x.position, ieskf_ptr);
+            map_ptr->addScan(filter_point_cloud_ptr, ieskf_ptr);
             return true;
         }
         return false;
@@ -171,8 +173,8 @@ namespace IESKFSlam{
             mean_angle_velocity += mg.imus_measure[i].gyroscope;
             imu_counts++;
         }
-        //imu_counts大于等于5就算初始化成功
-        if(imu_counts >= 5){
+        //imu_counts大于等于100就算初始化成功
+        if(imu_counts >= 100){
             auto x = ieskf.getX();
             mean_acc /= double(imu_counts);
             mean_angle_velocity /= double(imu_counts);
@@ -185,12 +187,34 @@ namespace IESKFSlam{
             //统一成m/s^2
             x.grivity = -mean_acc / mean_acc.norm() * GRIVITY;
             x.b_g = mean_angle_velocity;
+            if(gravity_align){
+                Eigen::Matrix3d rot;
+                setInit(x.grivity, rot);
+                x.rotation = rot;
+            }
             ieskf.setX(x);
             imu_inited = true;
         }
     }
+    void FrontEnd::setInit(const Eigen::Vector3d& gravity_m, Eigen::Matrix3d& rot){
+        Eigen::Vector3d gravity_w = {0,0,-9.81};
+        double align_norm = (skewSymmetric(gravity_w) * gravity_m).norm() / gravity_w.norm() / gravity_m.norm();
+        double align_cos = gravity_w.transpose() * gravity_m;
+        align_cos = align_cos / gravity_w.norm() / gravity_m.norm();
+        if(align_norm < 1e-6){
+            if(align_cos > 1e-6) rot = Eigen::Matrix3d::Identity();
+            else rot = -Eigen::Matrix3d::Identity();
+        }else{
+            Eigen::Vector3d align_angle = skewSymmetric(gravity_w) * gravity_m / (skewSymmetric(gravity_w) * gravity_m).norm() * acos(align_cos);
+            rot = so3Exp(align_angle);
+        }
+        gravity_align = false;
+    }
     IESKF::State24 FrontEnd::readState(){
         return ieskf_ptr->getX();
+    }
+    double FrontEnd::getLidarLastTime(){
+        return fb_propagate_ptr->last_lidar_end_time_;
     }
     
 

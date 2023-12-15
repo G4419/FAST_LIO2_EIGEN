@@ -16,7 +16,7 @@ namespace IESKFSlam{
             RectMapManager(const std::string &config_file_path, const std::string &prefix);
             ~RectMapManager();
             void reset();
-            void addScan(PCLPointCloudPtr cur_scan, const Eigen::Quaterniond &q, const Eigen::Vector3d &t, IESKF::Ptr ieskf_ptr);
+            void addScan(PCLPointCloudPtr cur_scan, IESKF::Ptr ieskf_ptr);
             PCLPointCloudConstPtr getLocalMap();
             KDtreeConstPtr readKdtree();
     };
