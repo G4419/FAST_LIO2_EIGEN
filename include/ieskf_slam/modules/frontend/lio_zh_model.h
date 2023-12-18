@@ -10,6 +10,7 @@ namespace IESKFSlam
     class LIOZHModel : public IESKF::calZHInterface{
         private:
             const int NEAR_POINTS_NUM = 5;
+            
             //1) point_imu 2) normal_vector 3)distance 4)point_lidar
             using loss_type = triple<Eigen::Vector3d, Eigen::Vector3d, double, Eigen::Vector3d>;
             KDtreeConstPtr global_map_kdtree_ptr;
@@ -17,6 +18,7 @@ namespace IESKFSlam
             PCLPointCloudConstPtr local_map_ptr;
         public:
             using Ptr =std::shared_ptr<LIOZHModel>;
+            bool extrinsic_est_en = false;
             void prepare(KDtreeConstPtr kd_tree, PCLPointCloudPtr current_cloud, PCLPointCloudConstPtr local_map){
                 global_map_kdtree_ptr = kd_tree;
                 current_cloud_ptr = current_cloud;
@@ -101,8 +103,10 @@ namespace IESKFSlam
                     Eigen::Vector3d dr = -loss_real[i].second.transpose() * state.rotation.toRotationMatrix() * skewSymmetric(loss_real[i].first);
                     H.block<1,3>(i, 0) = dr;
                     H.block<1,3>(i,3) = loss_real[i].second.transpose();
-                    H.block<1,3>(i,18) = -loss_real[i].second.transpose() * state.rotation.toRotationMatrix() * state.extrin_r.toRotationMatrix() * skewSymmetric(loss_real[i].fourth);
-                    H.block<1,3>(i,21) = loss_real[i].second.transpose() * state.rotation.toRotationMatrix();
+                    if(extrinsic_est_en){
+                        H.block<1,3>(i,18) = -loss_real[i].second.transpose() * state.rotation.toRotationMatrix() * state.extrin_r.toRotationMatrix() * skewSymmetric(loss_real[i].fourth);
+                        H.block<1,3>(i,21) = loss_real[i].second.transpose() * state.rotation.toRotationMatrix();
+                    }
                     Z(i,0) = loss_real[i].third;
                 }
                return true;

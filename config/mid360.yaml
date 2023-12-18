@@ -1,9 +1,10 @@
 wrapper:
   config_file_name: mid360.yaml
-  lidar_topic: /livox/lidar_192_168_1_159
-  imu_topic: /livox/imu_192_168_1_159
+  lidar_topic: /livox/lidar
+  imu_topic: /livox/imu
   lidar_type: 0 # 0)avia
   blind: 0.5
+  
 
 front_end:
   extrin_r: [1,0,0,
@@ -11,6 +12,9 @@ front_end:
             0,0,1]
   extrin_t: [-0.011,-0.02329,0.04412  ]
   gravity_align: true
+  filter_leaf_size: 0.2
+  extrinsic_est_en: false
+
 ieskf:
   cov_gyroscope: 0.1
   cov_acceleration: 0.1
