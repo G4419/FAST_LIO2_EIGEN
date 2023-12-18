@@ -7,6 +7,8 @@ namespace IESKFSlam{
         P.block<3,3>(9,9).diagonal() = Eigen::Vector3d{0.0001, 0.0001, 0.0001};
         P.block<3,3>(12,12).diagonal() = Eigen::Vector3d{0.001, 0.001, 0.001};
         P.block<3,3>(15,15).diagonal() = Eigen::Vector3d{0.00001, 0.00001, 0.00001};
+        P.block<3,3>(18,18).diagonal() = Eigen::Vector3d{0.00001, 0.00001, 0.00001};
+        P.block<3,3>(21,21).diagonal() = Eigen::Vector3d{0.00001, 0.00001, 0.00001};
         double cov_gyroscope, cov_acceleration, cov_bias_gyroscope, cov_bias_acceleration;
         //readParam：从ModuleBase里继承的读取参数的函数
         readParam("cov_gyroscope", cov_gyroscope, 0.1);
@@ -48,12 +50,12 @@ namespace IESKFSlam{
         Fw.setZero();
 
         Fx.block<3,3>(0,0) = so3Exp(-imu.gyroscope*dt);
-        Fx.block<3,3>(0,9) = -A_T(imu.gyroscope*dt)*dt;
+        Fx.block<3,3>(0,9) = -A_T(-imu.gyroscope*dt)*dt;
         Fx.block<3,3>(3,6) = Fx.block<3,3>(6,15) = Eigen::Matrix3d::Identity()*dt;
         Fx.block<3,3>(6,0) = -rotation*skewSymmetric(imu.acceleration)*dt;
         Fx.block<3,3>(6,12) = -rotation*dt;
 
-        Fw.block<3,3>(0,0) = -A_T(imu.gyroscope*dt) * dt;
+        Fw.block<3,3>(0,0) = -A_T(-imu.gyroscope*dt) * dt;
         Fw.block<3,3>(6,3) = -rotation*dt;
         Fw.block<3,3>(9,6) = Fw.block<3,3>(12,9) = Eigen::Matrix3d::Identity() *dt;
         P = Fx*P*Fx.transpose() +Fw*Q*Fw.transpose();
@@ -117,6 +119,7 @@ namespace IESKFSlam{
             x_k_k.b_a = x_k_k.b_a + update_X.block<3,1>(12,0);
             x_k_k.grivity = x_k_k.grivity + update_X.block<3,1>(15,0);
             x_k_k.extrin_r = x_k_k.extrin_r.toRotationMatrix() * so3Exp(update_X.block<3,1>(18,0));
+            x_k_k.extrin_r.normalize();
             x_k_k.extrin_t = x_k_k.extrin_t + update_X.block<3,1>(21,0);
 
             if (converge)

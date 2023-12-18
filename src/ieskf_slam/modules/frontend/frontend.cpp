@@ -3,8 +3,10 @@ namespace IESKFSlam{
     FrontEnd::FrontEnd(const std::string &config_file_path, const std::string &prefix) : ModuleBase(config_file_path, prefix, "Front End Module"){
         
         float leaf_size;
+        bool extrinsic_est_en;
         readParam("filter_leaf_size", leaf_size, 0.5f);
         readParam("gravity_align", gravity_align, false);
+        readParam("extrinsic_est_en", extrinsic_est_en, false);
         //设置体素滤波器，单位米
         voxfilter.setLeafSize(leaf_size, leaf_size, leaf_size);
         Eigen::Quaterniond extrin_r;
@@ -34,7 +36,7 @@ namespace IESKFSlam{
         readParam("record_file_name", record_file_name, std::string("default.txt"));
         //打开文件写入流
         if(enable_record){
-            record_file.open(RESULT_DIR + record_file_name, std::ios::app | std::ios::app);
+            record_file.open(RESULT_DIR + record_file_name, std::ios::app);
             if(!record_file.is_open()) std::cout << "unable to open file" << std::endl;
         }
         //打印参数
@@ -48,6 +50,8 @@ namespace IESKFSlam{
         map_ptr = std::make_shared<RectMapManager>(config_file_path, "map");
         fb_propagate_ptr = std::make_shared<FrontBackPropagate>();
         lio_zh_model_ptr = std::make_shared<LIOZHModel>();
+        lio_zh_model_ptr->extrinsic_est_en = extrinsic_est_en;
+
         //为了调用lio_zh_model的计算Z和H的函数
         ieskf_ptr->cal_ZH_ptr = lio_zh_model_ptr;
         //对点云进行下采样处理
@@ -79,12 +83,13 @@ namespace IESKFSlam{
         bool isSynced = syncMeasureGroup(mg);
         
         if(isSynced){
-            
+            // auto x = ieskf_ptr->getX();
+            // std::cout << "extrin_r: "  << x.extrin_r.toRotationMatrix() << std::endl;
+            // std::cout << "extrin_t: "  << x.extrin_t << std::endl;
             if(!imu_inited){
                 initState(mg);
                 map_ptr->reset();
                 //将初始的点云数据添加到地图中
-                auto x = ieskf_ptr->getX();
                 map_ptr->addScan(mg.point_cloud_measure.cloud_ptr, ieskf_ptr);
                 return false;
             }
