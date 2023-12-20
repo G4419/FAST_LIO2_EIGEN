@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.0.2)
-project(ieskf_slam)
+project(fast_lio2_eigen)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
 # add_compile_options(-std=c++11)
@@ -148,10 +148,10 @@ include_directories(
 #   src/${PROJECT_NAME}/ieskf_slam.cpp
 # )
 SET(IESKF_SLAM_FILE 
-src/ieskf_slam/modules/frontend/frontend.cpp
-src/ieskf_slam/modules/ieskf/ieskf.cpp
-src/ieskf_slam/modules/map/rect_map_manager.cpp
-src/ieskf_slam/modules/frontbackPropagate/frontback_propagate.cpp)
+src/fast_lio2_eigen/modules/frontend/frontend.cpp
+src/fast_lio2_eigen/modules/ieskf/ieskf.cpp
+src/fast_lio2_eigen/modules/map/rect_map_manager.cpp
+src/fast_lio2_eigen/modules/frontbackPropagate/frontback_propagate.cpp)
 SET(NOETIC_FRONTEND_WRAPPER_FILE src/wrapper/ros_noetic/ieskf_frontend_wrapper_noetic.cpp) 
 ## Add cmake target dependencies of the library
 ## as an example, code may need to be generated before libraries

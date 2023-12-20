@@ -11,7 +11,9 @@ front_end:
             0,1,0,
             0,0,1]
   extrin_t: [-0.011,-0.02329,0.04412  ]
-  gravity_align: true
+  enable_record: false
+  record_file_name: record.txt
+  gravity_align: false
   filter_leaf_size: 0.2
   extrinsic_est_en: false
 

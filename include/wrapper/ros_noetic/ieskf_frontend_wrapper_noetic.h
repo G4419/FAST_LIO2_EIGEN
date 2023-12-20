@@ -1,11 +1,11 @@
 #ifndef IESKF_FRONTEND_WRAPPER_NOETIC_H
 #define IESKF_FRONTEND_WRAPPER_NOETIC_H
-#include "ieskf_slam/modules/frontend/frontend.h"
+#include "fast_lio2_eigen/modules/frontend/frontend.h"
 #include <ros/ros.h>
 #include <sensor_msgs/PointCloud2.h>
 #include <sensor_msgs/Imu.h>
 #include <nav_msgs/Odometry.h>
-#include "lidar_process/avia_process.h"
+#include "lidar_process/process.h"
 #include <nav_msgs/Path.h>
 #include <tf/transform_broadcaster.h>
 namespace ROSNoetic{
@@ -26,10 +26,11 @@ namespace ROSNoetic{
         nav_msgs::Path path;
         nav_msgs::Odometry odometry;
 
-        std::shared_ptr<CommonLidarProcessInterface> lidar_process_ptr;
+        std::shared_ptr<Process> lidar_process_ptr;
 
         IESKFSlam::PCLPointCloud cur_cloud;
-        void cloudMsgsCallback(const livox_ros_driver::CustomMsg::ConstPtr &msg);
+        void livoxCloudMsgsCallback(const livox_ros_driver::CustomMsg::ConstPtr &msg);
+        void velodyneCloudMsgsCallback(const sensor_msgs::PointCloud2 &msg);
         void imuMsgsCallback(const sensor_msgs::ImuPtr &msg);
         
         void run();
