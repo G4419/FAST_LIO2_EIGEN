@@ -13,21 +13,18 @@ namespace IESKFSlam
             
             //1) point_imu 2) normal_vector 3)distance 4)point_lidar
             using loss_type = quadruple<Eigen::Vector3d, Eigen::Vector3d, double, Eigen::Vector3d>;
-            KDtreeConstPtr global_map_kdtree_ptr;
+            IKDtreePtr global_map_kdtree_ptr;
             PCLPointCloudPtr current_cloud_ptr;
-            PCLPointCloudConstPtr local_map_ptr;
+            // PCLPointCloudConstPtr local_map_ptr;
         public:
             using Ptr =std::shared_ptr<LIOZHModel>;
             bool extrinsic_est_en = false;
-            void prepare(KDtreeConstPtr kd_tree, PCLPointCloudPtr current_cloud, PCLPointCloudConstPtr local_map){
+            void prepare(IKDtreePtr kd_tree, PCLPointCloudPtr current_cloud){
                 global_map_kdtree_ptr = kd_tree;
                 current_cloud_ptr = current_cloud;
-                local_map_ptr = local_map;
+                // local_map_ptr = local_map;
             }
             bool calculate(const IESKF::State24 &state, Eigen::MatrixXd &Z, Eigen::MatrixXd &H) override {
-                //std::vector<loss_type> loss_v;
-                //loss_v.resize(current_cloud_ptr->size());
-                //std::vector<bool> is_effect_point(current_cloud_ptr->size(), false);
                 std::vector<loss_type> loss_real;
                 std::vector<loss_type> loss_v;
                 loss_v.resize(current_cloud_ptr->size());
@@ -50,22 +47,22 @@ namespace IESKFSlam
                     Point point_lidar = current_cloud_ptr->points[i];
                     Point point_imu = transformPoint(point_lidar, state.extrin_r, state.extrin_t);
                     Point point_world = transformPoint(point_imu, state.rotation, state.position);
-                    std::vector<int> point_index;
+                    // std::vector<int> point_index;
+                    PointVector nearest_points;
                     std::vector<float> point_distance;//nearestKSearch传入的必须是float
-                    global_map_kdtree_ptr->nearestKSearch(point_world, NEAR_POINTS_NUM, point_index, point_distance);
+                    global_map_kdtree_ptr->Nearest_Search(point_world, NEAR_POINTS_NUM, nearest_points, point_distance, 5);
                     // . 是否搜索到足够的点以及最远的点到当前点的距离足够小(太远，就不认为这俩在一个平面)
-                    if(point_distance.size() <NEAR_POINTS_NUM || point_distance[NEAR_POINTS_NUM-1] > 5){
-                        //std::cout <<"1 not enough" << std::endl;
+                    if(point_distance.size() <NEAR_POINTS_NUM){
                         continue;
                     } 
                     // . 判断这些点够不够成平面
                     std::vector<Point> planar_points;
-                    for(auto index : point_index){
-                        planar_points.push_back(local_map_ptr->at(index));
+                    for(auto & planar_point : nearest_points){
+                        planar_points.push_back(planar_point);
                     }
                     Eigen::Vector4d pabcd;
                     
-                    //1) point_imu 2) normal_vector 3)distance
+                    //1) point_imu 2) normal_vector 3)distance 4)point_lidar
                     // . 如果构成平面
                     if(planarCheck(planar_points, pabcd, 0.1)){
                         double pd = point_world.x * pabcd(0) + point_world.y * pabcd(1) + point_world.z * pabcd(2) +pabcd(3);
@@ -75,7 +72,6 @@ namespace IESKFSlam
                         loss.third = pd;
                         loss.fourth = {point_lidar.x, point_lidar.y, point_lidar.z};
                         if(isnan(pd) || isnan(loss.second(0)) || isnan(loss.second(1)) || isnan(loss.second(2))){
-                            //std::cout<< "invalid" << std::endl;
                             continue;
                         } 
                         // .计算点和平面的夹角，夹角越小S越大。

@@ -21,7 +21,6 @@ namespace ROSNoetic{
         ros::Subscriber cloud_sub;
         ros::Publisher path_pub;
         ros::Publisher cur_cloud_pub;
-        ros::Publisher local_map_pub;
         ros::Publisher odometry_pub;
         nav_msgs::Path path;
         nav_msgs::Odometry odometry;

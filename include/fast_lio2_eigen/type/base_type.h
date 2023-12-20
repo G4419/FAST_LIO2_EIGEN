@@ -3,15 +3,15 @@
 
 #include "fast_lio2_eigen/type/point_cloud.h"
 #include <pcl/filters/voxel_grid.h>
-#include <pcl/kdtree/kdtree_flann.h>
+// #include <pcl/kdtree/kdtree_flann.h>
+#include <ikd-Tree/ikd_Tree.h>
 namespace IESKFSlam
 {
     //体素滤波器
     using VoxFilter = pcl::VoxelGrid<Point>;
     //KD树
-    using KDtree = pcl::KdTreeFLANN<Point>;
-    using KDtreePtr = KDtree::Ptr;
-    using KDtreeConstPtr = KDtree::ConstPtr;
+    using IKDtree = KD_TREE;
+    using IKDtreePtr = std::shared_ptr<IESKFSlam::IKDtree>;
 
     const double GRIVITY = 9.81;
     template <typename _first, typename _second, typename _third, typename _fourth>

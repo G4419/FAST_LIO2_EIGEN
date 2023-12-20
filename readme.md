@@ -13,4 +13,4 @@
 3. 将livox_ros_driver和FAST_LIO2_EIGEN放到一起catkin_make
 ### TO-DO LIST
 - [x] 重力对齐 
-- [ ] 使用idk-tree代替kd-tree
+- [x] 使用idk-tree代替kd-tree
