@@ -57,7 +57,7 @@ namespace IESKFSlam{
             
             bool track();
             const PCLPointCloud &readCurrentPointCloud();
-            const PCLPointCloud &readCurrentLocalMap();
+            // const PCLPointCloud &readCurrentLocalMap();
             bool syncMeasureGroup(measure_group &mg);
             void initState(measure_group &mg);
             void setInit(const Eigen::Vector3d& gravity_m, Eigen::Matrix3d& rot);

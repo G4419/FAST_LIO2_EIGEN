@@ -6,20 +6,16 @@ namespace ROSNoetic{
         //文件名，雷达话题，imu话题
         std::string config_file_name, lidar_topic, imu_topic;
         //雷达类型
-        int lidar_type = 0;
+        int lidar_type;
         //视野盲区
-        double blid = 0;
+        double blid;
         nh.param<std::string>("wrapper/config_file_name", config_file_name, " ");
         nh.param<std::string>("wrapper/lidar_topic", lidar_topic, "/lidar");
         nh.param<std::string>("wrapper/imu_topic", imu_topic, "/imu");
         nh.param<int>("wrapper/lidar_type", lidar_type, AVIA);
         nh.param<double>("wrapper/blind", blid, 0);
-        std::cout <<  "lidar_type: " <<lidar_type << std::endl;
 
-        std::cout << "lidar_topic: " << lidar_topic << std::endl;
-        std::cout << "imu_topic: " << imu_topic << std::endl;
         //创建前端智能指针，里面包含ieskf、map和前后向传播的指针。
-
         frontend_ptr = std::make_shared<IESKFSlam::FrontEnd>(CONFIG_DIR + config_file_name, "front_end");
         lidar_process_ptr = std::make_shared<Process>();
         lidar_process_ptr->blind = blid;
@@ -36,7 +32,6 @@ namespace ROSNoetic{
                     nh.subscribe(lidar_topic, 200000, &IESKFFrontEndWrapper::velodyneCloudMsgsCallback, this);
         
         cur_cloud_pub = nh.advertise<sensor_msgs::PointCloud2>("curr_cloud", 100000);
-        local_map_pub = nh.advertise<sensor_msgs::PointCloud2>("local_map", 100000);
         path_pub = nh.advertise<nav_msgs::Path>("path", 100000);
         odometry_pub = nh.advertise<nav_msgs::Odometry>("odometry", 100000);
         //运行
@@ -129,13 +124,6 @@ namespace ROSNoetic{
         msg.header.frame_id = "map";
         cur_cloud_pub.publish(msg);
 
-        //发布地图信息
-        cloud = frontend_ptr->readCurrentLocalMap();
-        pcl::toROSMsg(cloud, msg);
-        msg.header.frame_id = "map";
-        local_map_pub.publish(msg);
-
-        
     }
 
 }

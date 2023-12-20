@@ -4,7 +4,7 @@ wrapper:
   imu_topic: /livox/imu
   lidar_type: 0 # 0)avia
   blind: 0.5
-  
+  det_range: 100.0
 
 front_end:
   extrin_r: [1,0,0,

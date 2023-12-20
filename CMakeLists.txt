@@ -137,7 +137,6 @@ catkin_package(
 ## Your package locations should be listed before other locations
 include_directories(
  include
- lib
   ${catkin_INCLUDE_DIRS}
   ${PCL_INCLUDE_DIRS}
   ${YAML_CPP_INCLUDEDIR}
@@ -163,6 +162,7 @@ SET(NOETIC_FRONTEND_WRAPPER_FILE src/wrapper/ros_noetic/ieskf_frontend_wrapper_n
 ## The recommended prefix ensures that target names across packages don't collide
 add_executable(ieskf_frontend_node 
 src/app/ieskf_noetic_node_running.cpp
+include/ikd-Tree/ikd_Tree.cpp
 ${NOETIC_FRONTEND_WRAPPER_FILE}
 ${IESKF_SLAM_FILE}) 
 

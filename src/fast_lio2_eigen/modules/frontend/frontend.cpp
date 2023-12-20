@@ -5,9 +5,11 @@ namespace IESKFSlam{
         
         float leaf_size;
         bool extrinsic_est_en;
+        double det_range;
         readParam("filter_leaf_size", leaf_size, 0.5f);
         readParam("gravity_align", gravity_align, false);
         readParam("extrinsic_est_en", extrinsic_est_en, false);
+        readParam("det_range", det_range, 300.0);
         //设置体素滤波器，单位米
         voxfilter.setLeafSize(leaf_size, leaf_size, leaf_size);
         Eigen::Quaterniond extrin_r;
@@ -37,7 +39,7 @@ namespace IESKFSlam{
         readParam("record_file_name", record_file_name, std::string("default.txt"));
         //打开文件写入流
         if(enable_record){
-            record_file.open(RESULT_DIR + record_file_name, std::ios::app);
+            record_file.open(RESULT_DIR + record_file_name, std::ios::out);
             if(!record_file.is_open()) std::cout << "unable to open file" << std::endl;
         }
         //打印参数
@@ -49,6 +51,7 @@ namespace IESKFSlam{
         x.extrin_t = extrin_t;
         ieskf_ptr->setX(x);
         map_ptr = std::make_shared<RectMapManager>(config_file_path, "map");
+        map_ptr->det_range = det_range;
         fb_propagate_ptr = std::make_shared<FrontBackPropagate>();
         lio_zh_model_ptr = std::make_shared<LIOZHModel>();
         lio_zh_model_ptr->extrinsic_est_en = extrinsic_est_en;
@@ -57,8 +60,8 @@ namespace IESKFSlam{
         ieskf_ptr->cal_ZH_ptr = lio_zh_model_ptr;
         //对点云进行下采样处理
         filter_point_cloud_ptr = pcl::make_shared<PCLPointCloud>();
-        //进行指针传递，分别对应 global_map_kdtree_ptr，current_cloud_ptr，local_map_ptr;
-        lio_zh_model_ptr->prepare(map_ptr->readKdtree(),filter_point_cloud_ptr, map_ptr->getLocalMap());
+        //进行指针传递，分别对应 global_map_kdtree_ptr，current_cloud_ptr
+        lio_zh_model_ptr->prepare(map_ptr->readKdtree(),filter_point_cloud_ptr);
     };
 
     FrontEnd::~FrontEnd(){
@@ -115,7 +118,6 @@ namespace IESKFSlam{
                             << x.rotation.w() << std::endl;
             }
 
-            //将点云加载到local_map_ptr（地图）中
             map_ptr->addScan(filter_point_cloud_ptr, ieskf_ptr);
             return true;
         }
@@ -125,9 +127,6 @@ namespace IESKFSlam{
     }
     const PCLPointCloud &FrontEnd::readCurrentPointCloud(){
         return *filter_point_cloud_ptr;
-    }
-    const PCLPointCloud &FrontEnd::readCurrentLocalMap(){
-        return *map_ptr->getLocalMap();
     }
     //取一组点云数据及对应的imu数据
     bool FrontEnd::syncMeasureGroup(measure_group &mg){
