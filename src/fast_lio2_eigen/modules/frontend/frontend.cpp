@@ -194,26 +194,26 @@ namespace IESKFSlam{
             x.b_g = mean_angle_velocity;
             if(gravity_align){
                 Eigen::Matrix3d rot;
-                setInit(x.grivity, rot);
+                R_12(Eigen::Vector3d{0,0,-9.81}, x.grivity, rot);
+                x.grivity = {0,0,-9.81};
                 x.rotation = rot;
             }
+
             ieskf.setX(x);
             imu_inited = true;
         }
     }
-    void FrontEnd::setInit(const Eigen::Vector3d& gravity_m, Eigen::Matrix3d& rot){
-        Eigen::Vector3d gravity_w = {0,0,-9.81};
-        double align_norm = (skewSymmetric(gravity_w) * gravity_m).norm() / gravity_w.norm() / gravity_m.norm();
-        double align_cos = gravity_w.transpose() * gravity_m;
-        align_cos = align_cos / gravity_w.norm() / gravity_m.norm();
+    void FrontEnd::R_12(const Eigen::Vector3d v1, const Eigen::Vector3d v2, Eigen::Matrix3d& rot){
+        double align_norm = (skewSymmetric(v2) * v1).norm() / v2.norm() / v1.norm();
+        double align_cos = v2.transpose() * v1;
+        align_cos = align_cos / v2.norm() / v1.norm();
         if(align_norm < 1e-6){
             if(align_cos > 1e-6) rot = Eigen::Matrix3d::Identity();
             else rot = -Eigen::Matrix3d::Identity();
         }else{
-            Eigen::Vector3d align_angle = skewSymmetric(gravity_w) * gravity_m / (skewSymmetric(gravity_w) * gravity_m).norm() * acos(align_cos);
+            Eigen::Vector3d align_angle = skewSymmetric(v2) * v1 / (skewSymmetric(v2) * v1).norm() * acos(align_cos);
             rot = so3Exp(align_angle);
         }
-        gravity_align = false;
     }
     IESKF::State24 FrontEnd::readState(){
         return ieskf_ptr->getX();

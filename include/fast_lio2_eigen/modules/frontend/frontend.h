@@ -60,7 +60,7 @@ namespace IESKFSlam{
             // const PCLPointCloud &readCurrentLocalMap();
             bool syncMeasureGroup(measure_group &mg);
             void initState(measure_group &mg);
-            void setInit(const Eigen::Vector3d& gravity_m, Eigen::Matrix3d& rot);
+            void R_12(const Eigen::Vector3d v1, const Eigen::Vector3d v2, Eigen::Matrix3d& rot);
             double getLidarLastTime();
             IESKF::State24 readState();
     };
